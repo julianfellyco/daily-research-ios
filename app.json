@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Daily Research",
+    "slug": "daily-research",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f3ede1"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.julianfellyco.dailyresearch"
+    },
+    "android": {
+      "package": "com.julianfellyco.dailyresearch",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#f3ede1"
+      }
+    },
+    "assetBundlePatterns": ["**/*"]
+  }
+}

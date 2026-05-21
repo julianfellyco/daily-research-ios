@@ -1,0 +1,29 @@
+{
+  "name": "daily-research-ios",
+  "version": "1.0.0",
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo run:ios",
+    "android": "expo run:android",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@expo-google-fonts/fraunces": "^0.2.3",
+    "@expo-google-fonts/newsreader": "^0.2.3",
+    "@react-native-async-storage/async-storage": "1.23.1",
+    "expo": "~51.0.28",
+    "expo-font": "~12.0.10",
+    "expo-status-bar": "~1.12.1",
+    "lucide-react-native": "^0.451.0",
+    "react": "18.2.0",
+    "react-native": "0.74.5",
+    "react-native-safe-area-context": "4.10.5",
+    "react-native-svg": "15.2.0",
+    "react-native-webview": "13.8.6"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0"
+  },
+  "private": true
+}
