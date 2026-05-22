@@ -1,8 +1,6 @@
 <div align="center">
 
-<img src="assets/icon.png" width="120" alt="Daily Research icon" />
-
-# Daily Research
+<img src="assets/wordmark.png" alt="Daily Research" width="700" />
 
 **One research paper a day — read in full, explained like you're 5.**
 
@@ -10,6 +8,12 @@ A native iOS study companion for AI and financial-markets research.
 Built with Expo + React Native.
 
 </div>
+
+<p align="center">
+  <img src="assets/icon.png" width="80" alt="App icon" />
+  &nbsp;&nbsp;
+  <img src="assets/icon-dark.png" width="80" alt="App icon, dark" />
+</p>
 
 ---
 
@@ -93,6 +97,10 @@ assets/                 # icon.png + splash.png (paper-themed)
 scripts/gen-assets.py   # regenerate icon + splash from palette
 LICENSE                 # MIT
 ```
+
+## Brand
+
+The visual identity — palette, typography, voice, motion rules — is documented in [BRAND.md](BRAND.md).
 
 ## License
 
