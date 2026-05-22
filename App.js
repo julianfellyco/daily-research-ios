@@ -49,6 +49,9 @@ import {
   Settings as SettingsIcon,
   X,
   Globe,
+  MessageCircle,
+  Send,
+  Baby,
 } from 'lucide-react-native';
 
 const C = {
@@ -291,6 +294,11 @@ function App() {
   const [tempKey, setTempKey] = useState('');
   const [viewing, setViewing] = useState(false);
   const [webLoading, setWebLoading] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatScrollRef = useRef(null);
 
   const spin = useRef(new Animated.Value(0)).current;
   const rise = useRef(new Animated.Value(0)).current;
@@ -358,6 +366,58 @@ function App() {
     setComplete(false);
     setReadError(false);
     setReadWait(null);
+    setMessages([]);
+    setChatInput('');
+  }
+
+  async function askChat(rawQuestion) {
+    const question = (rawQuestion || '').trim();
+    if (!question || chatLoading || !paper) return;
+    if (!apiKey) {
+      setShowSettings(true);
+      return;
+    }
+
+    const userMsg = { role: 'user', text: question };
+    const history = [...messages, userMsg];
+    setMessages(history);
+    setChatInput('');
+    setChatLoading(true);
+    setTimeout(() => chatScrollRef.current?.scrollToEnd({ animated: true }), 50);
+
+    const covered = sections.length
+      ? `\n\nWhat the user has read so far (in plain English):\n${sections
+          .map((s) => `• ${s.heading || ''}: ${s.body}`)
+          .join('\n')}`
+      : '';
+
+    const convo = history
+      .map((m) => `${m.role === 'user' ? 'User' : 'You'}: ${m.text}`)
+      .join('\n\n');
+
+    const prompt = `You are an ELI5 tutor — explain everything like the user is 5 years old. Use everyday words, short sentences, and real-world analogies (pizza, bikes, LEGO, animals). Never use jargon without defining it in plain English first. Be warm, encouraging, and concrete.
+
+Paper being studied: "${paper.title}" by ${paper.authors}
+Link: ${paper.url}
+Topic area: ${topic === 'ai' ? 'AI / machine learning' : 'financial markets / investing'}${covered}
+
+Conversation so far:
+${convo}
+
+Reply to the user's most recent message in plain text (no markdown headings, no asterisks). 1–3 short paragraphs MAX. If the user's question is about something you don't actually know from the paper, say "I'd need to peek at the paper for that — but here's what I can tell you..." and offer your best general explanation.`;
+
+    try {
+      const reply = await callClaude(prompt, apiKey, true);
+      setMessages((prev) => [...prev, { role: 'assistant', text: reply }]);
+    } catch (e) {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', text: friendlyError(e) },
+      ]);
+    } finally {
+      setChatLoading(false);
+      setTimeout(() => chatScrollRef.current?.scrollToEnd({ animated: true }), 80);
+    }
   }
 
   async function fetchPaper() {
@@ -612,6 +672,24 @@ When (and only when) you have thoroughly covered the ENTIRE paper, end your repl
                   </Text>
                 </Pressable>
 
+                <Pressable
+                  onPress={() => setChatOpen(true)}
+                  style={[
+                    styles.actionBtn,
+                    {
+                      backgroundColor: 'transparent',
+                      borderWidth: 1.5,
+                      borderColor: accent,
+                      marginBottom: 10,
+                    },
+                  ]}
+                >
+                  <Baby size={16} color={accent} />
+                  <Text style={[styles.actionBtnLabel, { color: accent }]}>
+                    Explain like I'm 5
+                  </Text>
+                </Pressable>
+
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                   <Pressable
                     onPress={toggleReader}
@@ -793,6 +871,134 @@ When (and only when) you have thoroughly covered the ENTIRE paper, end your repl
                 )}
               </View>
             ) : null}
+          </View>
+        </Modal>
+
+        {/* ELI5 chat modal */}
+        <Modal
+          visible={chatOpen}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={() => setChatOpen(false)}
+        >
+          <View style={{ flex: 1, backgroundColor: C.paper, paddingTop: insets.top }}>
+            <View style={styles.webBar}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={styles.webBarLabel}>Explain like I'm 5</Text>
+                <Text style={styles.webBarTitle} numberOfLines={1}>
+                  {paper?.title || ''}
+                </Text>
+              </View>
+              <Pressable onPress={() => setChatOpen(false)} hitSlop={10} style={styles.webClose}>
+                <X size={18} color={C.ink} />
+              </Pressable>
+            </View>
+
+            <KeyboardAvoidingView
+              style={{ flex: 1 }}
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              keyboardVerticalOffset={insets.top + s(60)}
+            >
+              <ScrollView
+                ref={chatScrollRef}
+                style={{ flex: 1 }}
+                contentContainerStyle={{
+                  padding: pad,
+                  paddingBottom: s(20),
+                }}
+                keyboardShouldPersistTaps="handled"
+              >
+                {messages.length === 0 ? (
+                  <View>
+                    <View style={styles.eli5Welcome}>
+                      <Baby size={28} color={accent} strokeWidth={1.4} />
+                      <Text style={styles.eli5WelcomeTitle}>
+                        Hi! Ask me anything about this paper.
+                      </Text>
+                      <Text style={styles.eli5WelcomeBody}>
+                        I'll explain it like you're 5 — short, simple, with everyday examples.
+                      </Text>
+                    </View>
+                    <Text style={styles.eli5SuggestLabel}>Try one of these:</Text>
+                    {[
+                      'What is this paper really about?',
+                      'Why should I care about this?',
+                      "What's the hardest word in the paper?",
+                      'Give me an analogy I\'ll understand.',
+                    ].map((q) => (
+                      <Pressable
+                        key={q}
+                        onPress={() => askChat(q)}
+                        style={styles.eli5Chip}
+                      >
+                        <Text style={styles.eli5ChipText}>{q}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : (
+                  messages.map((m, i) => (
+                    <View
+                      key={i}
+                      style={[
+                        styles.bubbleRow,
+                        m.role === 'user' ? { justifyContent: 'flex-end' } : null,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          m.role === 'user' ? styles.userBubble : styles.botBubble,
+                          { maxWidth: '88%' },
+                        ]}
+                      >
+                        <Text
+                          style={
+                            m.role === 'user' ? styles.userBubbleText : styles.botBubbleText
+                          }
+                        >
+                          {m.text}
+                        </Text>
+                      </View>
+                    </View>
+                  ))
+                )}
+
+                {chatLoading && (
+                  <View style={[styles.bubbleRow]}>
+                    <View style={styles.botBubble}>
+                      <Text style={styles.thinkingText}>thinking…</Text>
+                    </View>
+                  </View>
+                )}
+              </ScrollView>
+
+              <View style={[styles.chatInputRow, { paddingBottom: safeBottom + s(8) }]}>
+                <TextInput
+                  value={chatInput}
+                  onChangeText={setChatInput}
+                  placeholder="Ask anything…"
+                  placeholderTextColor={C.inkSoft}
+                  style={styles.chatInput}
+                  multiline
+                  maxLength={500}
+                  onSubmitEditing={() => askChat(chatInput)}
+                  blurOnSubmit={false}
+                  returnKeyType="send"
+                />
+                <Pressable
+                  onPress={() => askChat(chatInput)}
+                  disabled={!chatInput.trim() || chatLoading}
+                  style={[
+                    styles.sendBtn,
+                    {
+                      backgroundColor:
+                        chatInput.trim() && !chatLoading ? C.ink : C.inkSoft,
+                    },
+                  ]}
+                >
+                  <Send size={18} color={C.paper} />
+                </Pressable>
+              </View>
+            </KeyboardAvoidingView>
           </View>
         </Modal>
 
@@ -1174,5 +1380,119 @@ const makeStyles = (s, pad, isCompact, isSmall, isLarge) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(243, 237, 225, 0.6)',
+  },
+  eli5Welcome: {
+    alignItems: 'center',
+    paddingVertical: s(24),
+    marginBottom: s(8),
+  },
+  eli5WelcomeTitle: {
+    fontFamily: 'Fraunces_600SemiBold',
+    fontSize: s(20),
+    color: C.ink,
+    marginTop: s(12),
+    marginBottom: s(6),
+    textAlign: 'center',
+  },
+  eli5WelcomeBody: {
+    fontFamily: 'Newsreader_400Regular',
+    fontSize: s(15),
+    color: C.inkSoft,
+    textAlign: 'center',
+    lineHeight: s(22),
+    paddingHorizontal: s(8),
+  },
+  eli5SuggestLabel: {
+    fontFamily: 'Newsreader_400Regular',
+    fontSize: s(11),
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    color: C.inkSoft,
+    marginBottom: s(10),
+    marginTop: s(6),
+  },
+  eli5Chip: {
+    borderWidth: 1,
+    borderColor: C.line,
+    borderRadius: 12,
+    paddingVertical: s(11),
+    paddingHorizontal: s(14),
+    marginBottom: s(8),
+    backgroundColor: '#fdfbf6',
+  },
+  eli5ChipText: {
+    fontFamily: 'Newsreader_400Regular',
+    fontSize: s(15),
+    color: C.ink,
+    lineHeight: s(21),
+  },
+  bubbleRow: {
+    flexDirection: 'row',
+    marginBottom: s(10),
+  },
+  userBubble: {
+    backgroundColor: C.ink,
+    paddingHorizontal: s(14),
+    paddingVertical: s(10),
+    borderRadius: 18,
+    borderBottomRightRadius: 6,
+  },
+  userBubbleText: {
+    color: C.paper,
+    fontFamily: 'Newsreader_400Regular',
+    fontSize: s(15.5),
+    lineHeight: s(22),
+  },
+  botBubble: {
+    backgroundColor: '#fdfbf6',
+    borderWidth: 1,
+    borderColor: C.line,
+    paddingHorizontal: s(14),
+    paddingVertical: s(11),
+    borderRadius: 18,
+    borderBottomLeftRadius: 6,
+  },
+  botBubbleText: {
+    color: C.ink,
+    fontFamily: 'Newsreader_400Regular',
+    fontSize: s(15.5),
+    lineHeight: s(24),
+  },
+  thinkingText: {
+    color: C.inkSoft,
+    fontFamily: 'Newsreader_400Regular_Italic',
+    fontSize: s(14),
+  },
+  chatInputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: pad,
+    paddingTop: s(10),
+    gap: s(8),
+    borderTopWidth: 1,
+    borderTopColor: C.line,
+    backgroundColor: C.paper,
+  },
+  chatInput: {
+    flex: 1,
+    minHeight: s(40),
+    maxHeight: s(120),
+    borderWidth: 1.5,
+    borderColor: C.line,
+    borderRadius: 18,
+    paddingHorizontal: s(14),
+    paddingTop: s(10),
+    paddingBottom: s(10),
+    fontFamily: 'Newsreader_400Regular',
+    fontSize: s(15),
+    color: C.ink,
+    backgroundColor: C.paperDark,
+  },
+  sendBtn: {
+    width: s(44),
+    height: s(44),
+    borderRadius: s(22),
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
